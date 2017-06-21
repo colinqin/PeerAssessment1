@@ -1,0 +1,91 @@
+---
+title: "RepData_PeerAssessment1"
+---
+
+###Loading and preprocessing the data
+```{r loaddata}
+data_raw <- read.csv("activity.csv",na.strings = "NA")
+data <- data_raw[which(data_raw$steps!= "NA"),]
+```
+
+###Histogram of total of steps per day?
+
+```{r histogram}
+
+data_sum_steps <- aggregate(steps ~ date, data=data, FUN=sum)
+hist(data_sum_steps$steps, breaks=10, col="red", main="Histogram for total of steps per day", xlab="Total  of steps in a day")
+dev.copy(png, file = "figures/figure1.png");
+dev.off();
+
+```
+###What is mean total number of steps taken per day?
+```{r mean_median}
+mean(data_sum_steps$steps)
+median(data_sum_steps$steps)
+```
+
+###What is the average daily activity pattern?
+
+Make a time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
+
+```{r pressure, echo=FALSE}
+data_interval <- aggregate(steps~ interval,data=data,FUN=mean)
+plot(data_interval, type = "l", main="Average of steps")
+dev.copy(png, file = "figures/figure2.png");
+dev.off();
+```
+
+
+Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+```{r mean}
+
+max_step_by_interval <- data_interval[which.max(data_interval$steps),]
+max_step_by_interval
+```
+### Imputing missing values
+####Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with NAs)
+```{r na_sum}
+sum(is.na(data_raw$steps))
+```
+####Devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated. For example, you could use the mean/median for that day, or the mean for that 5-minute interval, etc.
+
+####I will use the means for the 5-minute intervals as fillers for missing values.
+
+```{r fill_missing_value}
+data_fill_missing <- data_raw
+for (i in 1:nrow(data_fill_missing) ){
+  if ( is.na(data_fill_missing[i,1])){
+    tmp <- data_interval[data_interval$interval==data_fill_missing[i,3],2]
+    data_fill_missing[i,1] <- tmp
+  }
+}
+```
+####Make a histogram of the total number of steps taken each day and Calculate and report the mean and median total number of steps taken per day. Do these values differ from the estimates from the first part of the assignment? What is the impact of imputing missing data on the estimates of the total daily number of steps
+```{r }
+data_new <- aggregate(steps ~ date, data=data_fill_missing, FUN=sum)
+hist(data_new$steps, breaks=10, col="red", main="Histogram for total of steps per day", xlab="Total  of steps in a day")
+dev.copy(png, file = "figures/figure3.png");
+dev.off();
+mean(data_new$steps)
+median(data_new$steps)
+```
+###Are there differences in activity patterns between weekdays and weekends?
+```{r getpatternsbyweekdays}
+data_fill_missing$date <- as.Date(data_fill_missing$date, "%Y-%m-%d")
+data_fill_missing$day <- weekdays(data_fill_missing$date)
+data_fill_missing$weekday <- c("weekday")
+for(i in 1:nrow(data_fill_missing)){
+  if( data_fill_missing[i,4] == "Saturday" || data_fill_missing[i,4] ==  "Sunday"){
+    data_fill_missing[i,5] <- c("weekend")
+  }
+}
+
+data_week <- aggregate(steps ~ interval + weekday, data=data_fill_missing, FUN=mean)
+names(data_week) <- c("interval", "day_type", "steps")
+
+library(lattice)
+xyplot(steps ~ interval | day_type, data_week, type = "l", layout = c(1, 2))
+dev.copy(png, file = "figures/figure4.png");
+dev.off()
+
+```
